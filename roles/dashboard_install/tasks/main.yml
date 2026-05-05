@@ -68,6 +68,16 @@
         dest: ~/.ansible/collections/ansible_collections/
         remote_src: true
 
+    # --- Create wrapper playbook outside collection dir ---
+
+    - name: Create installer wrapper playbook at bundle root
+      ansible.builtin.copy:
+        dest: "{{ dashboard_install_dir }}/run_install.yml"
+        mode: "0644"
+        content: |
+          ---
+          - import_playbook: ansible.containerized_installer.dashboard_install
+
     # --- Template inventory ---
 
     - name: Template installer inventory
@@ -80,10 +90,7 @@
 
     - name: Run dashboard installer playbook
       ansible.builtin.command:
-        cmd: >
-          ansible-playbook
-          collections/ansible_collections/ansible/containerized_installer/playbooks/dashboard_install.yml
-          --become
+        cmd: ansible-playbook run_install.yml --become
         chdir: "{{ dashboard_install_dir }}"
       environment:
         ANSIBLE_BECOME_PASSWORD: "{{ ansible_become_password | default('') }}"
