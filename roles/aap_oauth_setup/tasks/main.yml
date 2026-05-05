@@ -98,7 +98,7 @@
 
 - name: Create AAP personal access token for dashboard
   ansible.builtin.uri:
-    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/users/{{ aap_admin_user_id }}/personal_tokens/"
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/tokens/"
     method: POST
     user: "{{ vault_aap_admin_user }}"
     password: "{{ vault_aap_admin_password }}"
