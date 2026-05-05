@@ -39,11 +39,11 @@ Automate extraction of the setup bundle and execution of the dashboard installer
 
 Load cluster connection details into the running dashboard container.
 
-- [ ] [#9](https://github.com/cnorville90/aap-dashboard/issues/9) Template `clusters.yaml` with OAuth tokens and AAP gateway FQDN
-- [ ] [#9](https://github.com/cnorville90/aap-dashboard/issues/9) Copy `clusters.yaml` into container via `podman cp`
-- [ ] [#9](https://github.com/cnorville90/aap-dashboard/issues/9) Run `manage.py setclusters` to load configuration
-- [ ] [#10](https://github.com/cnorville90/aap-dashboard/issues/10) Verify tokens with `manage.py getclusters --decrypt`
-- [ ] [#11](https://github.com/cnorville90/aap-dashboard/issues/11) Secure cleanup of `clusters.yaml` from disk after load
+- [x] [#9](https://github.com/cnorville90/aap-dashboard/issues/9) Template `clusters.yaml` with OAuth tokens and AAP gateway FQDN
+- [x] [#9](https://github.com/cnorville90/aap-dashboard/issues/9) Copy `clusters.yaml` into container via `podman cp`
+- [x] [#9](https://github.com/cnorville90/aap-dashboard/issues/9) Run `manage.py setclusters` to load configuration
+- [x] [#10](https://github.com/cnorville90/aap-dashboard/issues/10) Verify tokens with `manage.py getclusters --decrypt`
+- [x] [#11](https://github.com/cnorville90/aap-dashboard/issues/11) Secure cleanup of `clusters.yaml` from disk after load
 
 ## Milestone 5 — Phase 4: Data Sync
 
