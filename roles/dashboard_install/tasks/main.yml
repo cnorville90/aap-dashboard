@@ -93,6 +93,8 @@
         cmd: ansible-playbook run_install.yml --become
         chdir: "{{ dashboard_install_dir }}"
       environment:
+        ANSIBLE_COLLECTIONS_PATH: "{{ dashboard_install_dir }}/collections"
+        ANSIBLE_COLLECTIONS_PATHS: "{{ dashboard_install_dir }}/collections"
         ANSIBLE_BECOME_PASSWORD: "{{ ansible_become_password | default('') }}"
       register: dashboard_install_result
       changed_when: "'changed=' in dashboard_install_result.stdout"
