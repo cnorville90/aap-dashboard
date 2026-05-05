@@ -40,6 +40,8 @@
         dest: "{{ dashboard_bundle_dest }}"
         remote_src: false
         creates: "{{ dashboard_install_dir }}/inventory.example"
+        owner: ec2-user
+        group: ec2-user
 
     # --- Generate self-signed TLS certificate via openssl ---
 

@@ -22,7 +22,6 @@
 - name: Install automation dashboard
   hosts: automationdashboard
   gather_facts: false
-  become: true
   roles:
     - role: dashboard_install
 
