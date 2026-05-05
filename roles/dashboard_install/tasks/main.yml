@@ -56,19 +56,14 @@
           -addext "subjectAltName=DNS:{{ dashboard_tls_common_name }}"
         creates: "{{ dashboard_tls_cert }}"
 
-    # --- Install bundled collections to standard path ---
+    # --- Install bundled collections via ansible-galaxy (offline) ---
 
-    - name: Create user collections directory
-      ansible.builtin.file:
-        path: ~/.ansible/collections/ansible_collections
-        state: directory
-        mode: "0755"
-
-    - name: Copy bundled collections to standard ansible collections path
-      ansible.builtin.copy:
-        src: "{{ dashboard_install_dir }}/collections/ansible_collections/"
-        dest: ~/.ansible/collections/ansible_collections/
-        remote_src: true
+    - name: Install required collections from bundle
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install -r requirements.yml -p ~/.ansible/collections
+        chdir: "{{ dashboard_install_dir }}"
+      environment:
+        ANSIBLE_COLLECTIONS_PATH: "{{ dashboard_install_dir }}/collections"
 
     # --- Create wrapper playbook outside collection dir ---
 
