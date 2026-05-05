@@ -54,6 +54,20 @@
           -addext "subjectAltName=DNS:{{ dashboard_tls_common_name }}"
         creates: "{{ dashboard_tls_cert }}"
 
+    # --- Install bundled collections to standard path ---
+
+    - name: Create user collections directory
+      ansible.builtin.file:
+        path: ~/.ansible/collections/ansible_collections
+        state: directory
+        mode: "0755"
+
+    - name: Copy bundled collections to standard ansible collections path
+      ansible.builtin.copy:
+        src: "{{ dashboard_install_dir }}/collections/ansible_collections/"
+        dest: ~/.ansible/collections/ansible_collections/
+        remote_src: true
+
     # --- Template inventory ---
 
     - name: Template installer inventory
@@ -72,7 +86,6 @@
           --become
         chdir: "{{ dashboard_install_dir }}"
       environment:
-        ANSIBLE_CONFIG: "{{ dashboard_install_dir }}/ansible.cfg"
         ANSIBLE_BECOME_PASSWORD: "{{ ansible_become_password | default('') }}"
       register: dashboard_install_result
       changed_when: "'changed=' in dashboard_install_result.stdout"
