@@ -1,0 +1,207 @@
+---
+# --- AWS credentials ---
+
+- name: Set AWS credentials from vault
+  ansible.builtin.set_fact:
+    aws_access_key: "{{ vault_aws_access_key }}"
+    aws_secret_key: "{{ vault_aws_secret_key }}"
+
+# --- Lookup latest RHEL 9 AMI ---
+
+- name: Find latest official RHEL 9 AMI
+  amazon.aws.ec2_ami_info:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    owners:
+      - "309956199498"  # Red Hat's official AWS account ID
+    filters:
+      name: "RHEL-9.*_HVM-*-x86_64-*-Hourly2-GP3"
+      architecture: x86_64
+      state: available
+  register: rhel9_ami_list
+
+- name: Set RHEL 9 AMI ID fact
+  ansible.builtin.set_fact:
+    ec2_ami_id: "{{ rhel9_ami_list.images | sort(attribute='creation_date') | last | json_query('image_id') }}"
+
+- name: Show selected AMI
+  ansible.builtin.debug:
+    msg: "Using RHEL 9 AMI: {{ ec2_ami_id }}"
+
+# --- Key pair ---
+
+- name: Generate EC2 key pair
+  amazon.aws.ec2_key:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    name: "{{ ec2_key_pair_name }}"
+    state: present
+  register: ec2_key_result
+
+- name: Save private key to ~/.ssh/
+  ansible.builtin.copy:
+    content: "{{ ec2_key_result.key.private_key }}"
+    dest: "{{ ec2_key_pair_path }}"
+    mode: "0600"
+  when: ec2_key_result.key.private_key is defined
+
+# --- VPC ---
+
+- name: Create VPC
+  amazon.aws.ec2_vpc_net:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    name: "{{ vpc_name }}"
+    cidr_block: "{{ vpc_cidr }}"
+    state: present
+    tags:
+      Name: "{{ vpc_name }}"
+  register: vpc_result
+
+- name: Set VPC ID fact
+  ansible.builtin.set_fact:
+    vpc_id: "{{ vpc_result.vpc.id }}"
+
+# --- Subnet ---
+
+- name: Create public subnet
+  amazon.aws.ec2_vpc_subnet:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ subnet_cidr }}"
+    az: "{{ aws_availability_zone }}"
+    map_public: true
+    state: present
+    tags:
+      Name: "{{ subnet_name }}"
+  register: subnet_result
+
+- name: Set subnet ID fact
+  ansible.builtin.set_fact:
+    subnet_id: "{{ subnet_result.subnet.id }}"
+
+# --- Internet gateway ---
+
+- name: Create internet gateway
+  amazon.aws.ec2_vpc_igw:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    state: present
+    tags:
+      Name: "{{ igw_name }}"
+  register: igw_result
+
+# --- Route table ---
+
+- name: Create and attach route table
+  amazon.aws.ec2_vpc_route_table:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    vpc_id: "{{ vpc_id }}"
+    subnets:
+      - "{{ subnet_id }}"
+    routes:
+      - dest: "0.0.0.0/0"
+        gateway_id: "{{ igw_result.gateway_id }}"
+    state: present
+    tags:
+      Name: "{{ route_table_name }}"
+
+# --- Security group ---
+
+- name: Create security group
+  amazon.aws.ec2_security_group:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    name: "{{ sg_name }}"
+    description: AAP Dashboard security group
+    vpc_id: "{{ vpc_id }}"
+    rules: "{{ sg_rules }}"
+    state: present
+    tags:
+      Name: "{{ sg_name }}"
+  register: sg_result
+
+# --- EC2 instance ---
+
+- name: Launch EC2 instance
+  amazon.aws.ec2_instance:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    name: "{{ ec2_instance_name }}"
+    key_name: "{{ ec2_key_pair_name }}"
+    instance_type: "{{ ec2_instance_type }}"
+    image_id: "{{ ec2_ami_id }}"
+    vpc_subnet_id: "{{ subnet_id }}"
+    security_groups:
+      - "{{ sg_result.group_id }}"
+    network:
+      assign_public_ip: true
+    volumes:
+      - device_name: /dev/sda1
+        ebs:
+          volume_size: "{{ ec2_volume_size }}"
+          volume_type: gp3
+          delete_on_termination: true
+    state: running
+    wait: true
+    tags:
+      Name: "{{ ec2_instance_name }}"
+  register: ec2_result
+
+- name: Set instance ID fact
+  ansible.builtin.set_fact:
+    ec2_instance_id: "{{ ec2_result.instances[0].instance_id }}"
+
+# --- Elastic IP ---
+
+- name: Allocate and associate Elastic IP
+  amazon.aws.ec2_eip:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    device_id: "{{ ec2_instance_id }}"
+    state: present
+    in_vpc: true
+    release_on_disassociation: true
+    tag_name: Name
+    tag_value: "{{ ec2_instance_name }}-eip"
+  register: eip_result
+
+- name: Show Elastic IP
+  ansible.builtin.debug:
+    msg: "Dashboard Elastic IP: {{ eip_result.public_ip }}"
+
+# --- Add to in-memory inventory ---
+
+- name: Add dashboard host to in-memory inventory
+  ansible.builtin.add_host:
+    name: "{{ eip_result.public_ip }}"
+    groups: automationdashboard
+    ansible_user: ec2-user
+    ansible_ssh_private_key_file: "{{ ec2_key_pair_path }}"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+- name: Set dashboard host fact for downstream roles
+  ansible.builtin.set_fact:
+    dashboard_host_ip: "{{ eip_result.public_ip }}"
+
+# --- Wait for SSH ---
+
+- name: Wait for SSH to become available
+  ansible.builtin.wait_for:
+    host: "{{ eip_result.public_ip }}"
+    port: 22
+    delay: 10
+    timeout: 300
+    state: started

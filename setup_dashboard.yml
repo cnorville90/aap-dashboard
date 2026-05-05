@@ -4,6 +4,13 @@
 #     -e "aap_gateway_fqdn=aap-aap.apps.cluster-XXXXX.dynamic.redhatworkshops.io" \
 #     --ask-vault-pass
 
+- name: Provision EC2 instance for dashboard
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ec2_provision
+
 - name: Create OAuth2 app and token in AAP
   hosts: automationdashboard
   gather_facts: false
@@ -13,6 +20,7 @@
 - name: Install automation dashboard
   hosts: automationdashboard
   gather_facts: false
+  become: true
   roles:
     - role: dashboard_install
 
