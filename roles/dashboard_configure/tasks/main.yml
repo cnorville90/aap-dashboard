@@ -1,19 +1,78 @@
 ---
+# --- Pre-flight: confirm container is running ---
+
+- name: Verify dashboard container is running
+  ansible.builtin.command:
+    cmd: podman ps --filter name={{ dashboard_container_name }} --format {{ '{{' }}.Names{{ '}}' }}
+  register: container_check
+  changed_when: false
+
+- name: Fail if dashboard container is not running
+  ansible.builtin.fail:
+    msg: >
+      Container '{{ dashboard_container_name }}' is not running.
+      Run the dashboard_install role first.
+  when: dashboard_container_name not in container_check.stdout
+
+# --- Template clusters.yaml to a unique temp path ---
+
+- name: Set temp path for clusters.yaml
+  ansible.builtin.set_fact:
+    clusters_yaml_tmp: "/tmp/clusters_{{ ansible_date_time.epoch }}.yaml"
+
 - name: Template clusters.yaml
   ansible.builtin.template:
     src: clusters.yaml.j2
-    dest: /tmp/clusters.yaml
+    dest: "{{ clusters_yaml_tmp }}"
     mode: "0600"
+
+# --- Load configuration into container ---
 
 - name: Copy clusters.yaml into dashboard container
   ansible.builtin.command:
-    cmd: podman cp /tmp/clusters.yaml automation-dashboard-web:/tmp/clusters.yaml
+    cmd: podman cp {{ clusters_yaml_tmp }} {{ dashboard_container_name }}:/tmp/clusters.yaml
+  changed_when: true
 
-- name: Load cluster configuration into dashboard
+- name: Load cluster configuration with setclusters
   ansible.builtin.command:
-    cmd: podman exec automation-dashboard-web /venv/bin/python manage.py setclusters /tmp/clusters.yaml
+    cmd: >
+      podman exec {{ dashboard_container_name }}
+      /venv/bin/python manage.py setclusters /tmp/clusters.yaml
+  register: setclusters_result
+  changed_when: "'Successfully' in setclusters_result.stdout or setclusters_result.rc == 0"
+  failed_when: setclusters_result.rc != 0
 
-- name: Remove local clusters.yaml
+- name: Show setclusters output
+  ansible.builtin.debug:
+    msg: "{{ setclusters_result.stdout_lines }}"
+
+# --- Secure cleanup ---
+
+- name: Remove temp clusters.yaml from host
   ansible.builtin.file:
-    path: /tmp/clusters.yaml
+    path: "{{ clusters_yaml_tmp }}"
     state: absent
+
+# --- Verify tokens with getclusters --decrypt (issue #10) ---
+
+- name: Retrieve stored cluster config to verify tokens
+  ansible.builtin.command:
+    cmd: >
+      podman exec {{ dashboard_container_name }}
+      /venv/bin/python manage.py getclusters --decrypt
+  register: getclusters_result
+  changed_when: false
+
+- name: Parse getclusters output
+  ansible.builtin.set_fact:
+    stored_clusters: "{{ getclusters_result.stdout | from_yaml }}"
+
+- name: Verify stored access_token matches what was loaded
+  ansible.builtin.assert:
+    that:
+      - stored_clusters.clusters | selectattr('address', 'equalto', aap_gateway_fqdn) | list | length > 0
+    fail_msg: >
+      Cluster '{{ aap_gateway_fqdn }}' was not found in stored dashboard config.
+      setclusters may have failed silently. Check container logs:
+      podman logs {{ dashboard_container_name }}
+    success_msg: "Cluster '{{ aap_gateway_fqdn }}' verified in dashboard configuration."
