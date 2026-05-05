@@ -17,12 +17,12 @@ Initial project structure, roles skeleton, and documentation.
 
 Automate creation of the OAuth2 application and access token in AAP via REST API.
 
-- [ ] [#1](https://github.com/cnorville90/aap-dashboard/issues/1) Create OAuth2 application (`automation-dashboard-sso`) via AAP Gateway API
-- [ ] [#1](https://github.com/cnorville90/aap-dashboard/issues/1) Capture `client_id` and `client_secret` as Ansible facts
-- [ ] [#2](https://github.com/cnorville90/aap-dashboard/issues/2) Generate personal access token (scope: read)
-- [ ] [#2](https://github.com/cnorville90/aap-dashboard/issues/2) Capture `access_token` and `refresh_token` as Ansible facts
+- [x] [#1](https://github.com/cnorville90/aap-dashboard/issues/1) Create OAuth2 application (`automation-dashboard-sso`) via AAP Gateway API
+- [x] [#1](https://github.com/cnorville90/aap-dashboard/issues/1) Capture `client_id` and `client_secret` as Ansible facts
+- [x] [#2](https://github.com/cnorville90/aap-dashboard/issues/2) Generate personal access token (scope: read)
+- [x] [#2](https://github.com/cnorville90/aap-dashboard/issues/2) Capture `access_token` and `refresh_token` as Ansible facts
 - [ ] [#4](https://github.com/cnorville90/aap-dashboard/issues/4) Test against a live Product Demos AAP instance
-- [ ] [#3](https://github.com/cnorville90/aap-dashboard/issues/3) Handle idempotency (skip if app already exists)
+- [x] [#3](https://github.com/cnorville90/aap-dashboard/issues/3) Handle idempotency (skip if app already exists)
 
 ## Milestone 3 — Phase 2: Dashboard Install
 
