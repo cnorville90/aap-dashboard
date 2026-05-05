@@ -41,30 +41,18 @@
         remote_src: false
         creates: "{{ dashboard_install_dir }}/inventory.example"
 
-    # --- Generate self-signed TLS certificate ---
+    # --- Generate self-signed TLS certificate via openssl ---
 
-    - name: Generate private key for self-signed TLS cert
-      community.crypto.openssl_privatekey:
-        path: "{{ dashboard_tls_key }}"
-        size: 4096
-        mode: "0600"
-
-    - name: Generate CSR for self-signed TLS cert
-      community.crypto.openssl_csr_pipe:
-        privatekey_path: "{{ dashboard_tls_key }}"
-        common_name: "{{ dashboard_tls_common_name }}"
-        subject_alt_names:
-          - "DNS:{{ dashboard_tls_common_name }}"
-      register: dashboard_csr
-
-    - name: Generate self-signed TLS certificate
-      community.crypto.x509_certificate:
-        path: "{{ dashboard_tls_cert }}"
-        privatekey_path: "{{ dashboard_tls_key }}"
-        csr_content: "{{ dashboard_csr.csr }}"
-        provider: selfsigned
-        selfsigned_not_after: "+{{ dashboard_tls_days_valid }}d"
-        mode: "0644"
+    - name: Generate self-signed TLS certificate and private key
+      ansible.builtin.command:
+        cmd: >
+          openssl req -x509 -newkey rsa:4096 -nodes
+          -keyout {{ dashboard_tls_key }}
+          -out {{ dashboard_tls_cert }}
+          -days {{ dashboard_tls_days_valid }}
+          -subj "/CN={{ dashboard_tls_common_name }}"
+          -addext "subjectAltName=DNS:{{ dashboard_tls_common_name }}"
+        creates: "{{ dashboard_tls_cert }}"
 
     # --- Template inventory ---
 
