@@ -21,6 +21,28 @@
   ansible.builtin.set_fact:
     aap_admin_user_id: "{{ aap_user_response.json.results[0].id }}"
 
+# --- Lookup Default organization ID ---
+
+- name: Get Default organization
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/organizations/?name=Default"
+    method: GET
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+  register: org_response
+
+- name: Fail if Default organization not found
+  ansible.builtin.fail:
+    msg: "Default organization not found on {{ aap_gateway_fqdn }}"
+  when: org_response.json.count == 0
+
+- name: Set organization ID fact
+  ansible.builtin.set_fact:
+    aap_org_id: "{{ org_response.json.results[0].id }}"
+
 # --- Idempotency: check if OAuth app already exists ---
 
 - name: Check if OAuth2 application already exists
@@ -48,7 +70,8 @@
       description: "{{ oauth_app_description }}"
       authorization_grant_type: "{{ oauth_app_grant_type }}"
       client_type: "{{ oauth_app_client_type }}"
-      redirect_uris: "https://{{ inventory_hostname }}/auth-callback"
+      redirect_uris: "https://{{ dashboard_host_ip }}/auth-callback"
+      organization: "{{ aap_org_id }}"
     status_code: [200, 201]
   register: new_app_response
   when: existing_app_response.json.count == 0

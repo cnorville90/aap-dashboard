@@ -14,6 +14,8 @@
 - name: Create OAuth2 app and token in AAP
   hosts: automationdashboard
   gather_facts: false
+  vars:
+    dashboard_host_ip: "{{ hostvars['localhost']['dashboard_host_ip'] }}"
   roles:
     - role: aap_oauth_setup
 
