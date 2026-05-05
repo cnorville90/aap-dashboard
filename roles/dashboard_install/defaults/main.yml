@@ -3,3 +3,11 @@ dashboard_bundle_src: /media/ansible-automation-dashboard-containerized-setup-bu
 dashboard_bundle_dest: /home/ec2-user/dashboard_bundle
 dashboard_install_dir: "{{ dashboard_bundle_dest }}/ansible-automation-dashboard-containerized-setup"
 dashboard_container_name: automation-dashboard-web
+
+# TLS cert paths (relative to install dir, matches existing inventory)
+dashboard_tls_cert: "{{ dashboard_install_dir }}/fullchain.pem"
+dashboard_tls_key: "{{ dashboard_install_dir }}/privkey.pem"
+
+# Self-signed cert settings
+dashboard_tls_common_name: "{{ inventory_hostname }}"
+dashboard_tls_days_valid: 3650

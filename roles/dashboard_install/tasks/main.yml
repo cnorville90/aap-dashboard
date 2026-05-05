@@ -1,13 +1,33 @@
 ---
+# --- Idempotency check ---
+
 - name: Check if dashboard container is already running
   ansible.builtin.command:
-    cmd: podman ps --filter name=automation-dashboard-web --format "{{ '{{' }}.Names{{ '}}' }}"
+    cmd: podman ps --filter name={{ dashboard_container_name }} --format {{ '{{' }}.Names{{ '}}' }}
   register: dashboard_running
   changed_when: false
 
+- name: Skip install — dashboard container already running
+  ansible.builtin.debug:
+    msg: "Container '{{ dashboard_container_name }}' is already running. Skipping install."
+  when: dashboard_container_name in dashboard_running.stdout
+
+# --- Install block (skipped if container already running) ---
+
 - name: Run dashboard installation
-  when: "'automation-dashboard-web' not in dashboard_running.stdout"
+  when: dashboard_container_name not in dashboard_running.stdout
   block:
+
+    # --- Prerequisites ---
+
+    - name: Install ansible-core
+      ansible.builtin.dnf:
+        name: ansible-core
+        state: present
+      become: true
+
+    # --- Extract bundle ---
+
     - name: Create bundle destination directory
       ansible.builtin.file:
         path: "{{ dashboard_bundle_dest }}"
@@ -19,17 +39,34 @@
         src: "{{ dashboard_bundle_src }}"
         dest: "{{ dashboard_bundle_dest }}"
         remote_src: false
+        creates: "{{ dashboard_install_dir }}/inventory.example"
 
-    - name: Install ansible-core
-      ansible.builtin.dnf:
-        name: ansible-core
-        state: present
-      become: true
+    # --- Generate self-signed TLS certificate ---
 
-    - name: Install required Ansible collections
-      ansible.builtin.command:
-        cmd: ansible-galaxy collection install -r requirements.yml
-        chdir: "{{ dashboard_install_dir }}"
+    - name: Generate private key for self-signed TLS cert
+      community.crypto.openssl_privatekey:
+        path: "{{ dashboard_tls_key }}"
+        size: 4096
+        mode: "0600"
+
+    - name: Generate CSR for self-signed TLS cert
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ dashboard_tls_key }}"
+        common_name: "{{ dashboard_tls_common_name }}"
+        subject_alt_names:
+          - "DNS:{{ dashboard_tls_common_name }}"
+      register: dashboard_csr
+
+    - name: Generate self-signed TLS certificate
+      community.crypto.x509_certificate:
+        path: "{{ dashboard_tls_cert }}"
+        privatekey_path: "{{ dashboard_tls_key }}"
+        csr_content: "{{ dashboard_csr.csr }}"
+        provider: selfsigned
+        selfsigned_not_after: "+{{ dashboard_tls_days_valid }}d"
+        mode: "0644"
+
+    # --- Template inventory ---
 
     - name: Template installer inventory
       ansible.builtin.template:
@@ -37,8 +74,34 @@
         dest: "{{ dashboard_install_dir }}/inventory"
         mode: "0600"
 
-    - name: Run dashboard installer
+    # --- Run installer ---
+
+    - name: Run dashboard installer playbook
       ansible.builtin.command:
-        cmd: ansible-playbook -i inventory ansible.containerized_installer.dashboard_install
+        cmd: ansible-playbook ansible.containerized_installer.dashboard_install --become
         chdir: "{{ dashboard_install_dir }}"
-      become: true
+      environment:
+        ANSIBLE_BECOME_PASSWORD: "{{ ansible_become_password | default('') }}"
+      register: dashboard_install_result
+      changed_when: "'changed=' in dashboard_install_result.stdout"
+
+    - name: Show installer recap
+      ansible.builtin.debug:
+        msg: "{{ dashboard_install_result.stdout_lines | select('match', '.*PLAY RECAP.*|.*ok=.*') | list }}"
+
+# --- Post-install validation ---
+
+- name: Verify dashboard container is running post-install
+  ansible.builtin.command:
+    cmd: podman ps --filter name={{ dashboard_container_name }} --format {{ '{{' }}.Names{{ '}}' }}
+  register: post_install_check
+  changed_when: false
+
+- name: Fail if dashboard container is not running
+  ansible.builtin.fail:
+    msg: "Dashboard container '{{ dashboard_container_name }}' is not running after install. Check {{ dashboard_install_dir }}/aap_install.log"
+  when: dashboard_container_name not in post_install_check.stdout
+
+- name: Confirm dashboard is running
+  ansible.builtin.debug:
+    msg: "Dashboard container '{{ dashboard_container_name }}' is running successfully."
