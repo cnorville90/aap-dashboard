@@ -1,0 +1,6 @@
+---
+oauth_app_name: automation-dashboard-sso
+oauth_app_grant_type: authorization-code
+oauth_app_client_type: confidential
+oauth_app_scope: read
+oauth_app_description: OAuth2 application for AAP Automation Dashboard

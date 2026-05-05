@@ -1,5 +1,7 @@
 ---
-- name: Get AAP gateway user ID for admin
+# --- Lookup admin user ID ---
+
+- name: Get AAP admin user details
   ansible.builtin.uri:
     url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/users/?username={{ vault_aap_admin_user }}"
     method: GET
@@ -10,13 +12,31 @@
     status_code: 200
   register: aap_user_response
 
+- name: Fail if admin user not found
+  ansible.builtin.fail:
+    msg: "Admin user '{{ vault_aap_admin_user }}' not found on {{ aap_gateway_fqdn }}"
+  when: aap_user_response.json.count == 0
+
 - name: Set admin user ID fact
   ansible.builtin.set_fact:
     aap_admin_user_id: "{{ aap_user_response.json.results[0].id }}"
 
-- name: Create OAuth2 application in AAP
+# --- Idempotency: check if OAuth app already exists ---
+
+- name: Check if OAuth2 application already exists
   ansible.builtin.uri:
-    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/o/applications/"
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/applications/?name={{ oauth_app_name | urlencode }}"
+    method: GET
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+  register: existing_app_response
+
+- name: Create OAuth2 application (if it does not exist)
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/applications/"
     method: POST
     user: "{{ vault_aap_admin_user }}"
     password: "{{ vault_aap_admin_password }}"
@@ -25,18 +45,35 @@
     body_format: json
     body:
       name: "{{ oauth_app_name }}"
+      description: "{{ oauth_app_description }}"
       authorization_grant_type: "{{ oauth_app_grant_type }}"
       client_type: "{{ oauth_app_client_type }}"
       redirect_uris: "https://{{ inventory_hostname }}/auth-callback"
     status_code: [200, 201]
-  register: oauth_app_response
+  register: new_app_response
+  when: existing_app_response.json.count == 0
 
-- name: Set OAuth application facts
+- name: Set OAuth app facts from new application
   ansible.builtin.set_fact:
-    oauth_client_id: "{{ oauth_app_response.json.client_id }}"
-    oauth_client_secret: "{{ oauth_app_response.json.client_secret }}"
+    oauth_app_id: "{{ new_app_response.json.id }}"
+    oauth_client_id: "{{ new_app_response.json.client_id }}"
+    oauth_client_secret: "{{ new_app_response.json.client_secret }}"
+  when: existing_app_response.json.count == 0
 
-- name: Create AAP access token for dashboard
+- name: Set OAuth app facts from existing application
+  ansible.builtin.set_fact:
+    oauth_app_id: "{{ existing_app_response.json.results[0].id }}"
+    oauth_client_id: "{{ existing_app_response.json.results[0].client_id }}"
+    oauth_client_secret: "{{ existing_app_response.json.results[0].client_secret }}"
+  when: existing_app_response.json.count > 0
+
+- name: Log OAuth app status
+  ansible.builtin.debug:
+    msg: "{{ 'Reusing existing' if existing_app_response.json.count > 0 else 'Created new' }} OAuth2 app '{{ oauth_app_name }}' (id={{ oauth_app_id }})"
+
+# --- Create access token ---
+
+- name: Create AAP personal access token for dashboard
   ansible.builtin.uri:
     url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/users/{{ aap_admin_user_id }}/personal_tokens/"
     method: POST
@@ -46,9 +83,9 @@
     validate_certs: false
     body_format: json
     body:
-      description: automation-dashboard token
-      application: "{{ oauth_app_response.json.id }}"
-      scope: read
+      description: "automation-dashboard token"
+      application: "{{ oauth_app_id }}"
+      scope: "{{ oauth_app_scope }}"
     status_code: [200, 201]
   register: oauth_token_response
 
@@ -56,3 +93,7 @@
   ansible.builtin.set_fact:
     oauth_access_token: "{{ oauth_token_response.json.token }}"
     oauth_refresh_token: "{{ oauth_token_response.json.refresh_token }}"
+
+- name: Confirm tokens were captured
+  ansible.builtin.debug:
+    msg: "OAuth setup complete. access_token={{ oauth_access_token[:8] }}... refresh_token={{ oauth_refresh_token[:8] }}..."

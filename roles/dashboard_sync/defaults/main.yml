@@ -1,0 +1,3 @@
+---
+dashboard_container_name: automation-dashboard-web
+initial_sync_days: 1
