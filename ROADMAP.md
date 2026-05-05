@@ -28,12 +28,12 @@ Automate creation of the OAuth2 application and access token in AAP via REST API
 
 Automate extraction of the setup bundle and execution of the dashboard installer on the RHEL 9 host.
 
-- [ ] [#5](https://github.com/cnorville90/aap-dashboard/issues/5) Copy and extract bundle from `/media/` to dashboard host
-- [ ] [#5](https://github.com/cnorville90/aap-dashboard/issues/5) Install `ansible-core` and required collections
-- [ ] [#6](https://github.com/cnorville90/aap-dashboard/issues/6) Template installer `inventory` file from vault variables
-- [ ] [#7](https://github.com/cnorville90/aap-dashboard/issues/7) Run `ansible.containerized_installer.dashboard_install`
-- [ ] [#7](https://github.com/cnorville90/aap-dashboard/issues/7) Validate containers are running post-install (`podman ps`)
-- [ ] [#8](https://github.com/cnorville90/aap-dashboard/issues/8) Idempotency: skip install if dashboard already running
+- [x] [#5](https://github.com/cnorville90/aap-dashboard/issues/5) Copy and extract bundle from `/media/` to dashboard host
+- [x] [#5](https://github.com/cnorville90/aap-dashboard/issues/5) Install `ansible-core` (collections are pre-bundled — no internet required)
+- [x] [#6](https://github.com/cnorville90/aap-dashboard/issues/6) Template installer `inventory` file from vault variables
+- [x] [#7](https://github.com/cnorville90/aap-dashboard/issues/7) Run `ansible.containerized_installer.dashboard_install`
+- [x] [#7](https://github.com/cnorville90/aap-dashboard/issues/7) Validate containers are running post-install (`podman ps`)
+- [x] [#8](https://github.com/cnorville90/aap-dashboard/issues/8) Idempotency: skip install if dashboard already running
 
 ## Milestone 4 — Phase 3: Dashboard Configuration
 
