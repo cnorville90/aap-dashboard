@@ -1,0 +1,44 @@
+---
+- name: Check if dashboard container is already running
+  ansible.builtin.command:
+    cmd: podman ps --filter name=automation-dashboard-web --format "{{ '{{' }}.Names{{ '}}' }}"
+  register: dashboard_running
+  changed_when: false
+
+- name: Run dashboard installation
+  when: "'automation-dashboard-web' not in dashboard_running.stdout"
+  block:
+    - name: Create bundle destination directory
+      ansible.builtin.file:
+        path: "{{ dashboard_bundle_dest }}"
+        state: directory
+        mode: "0755"
+
+    - name: Extract dashboard setup bundle
+      ansible.builtin.unarchive:
+        src: "{{ dashboard_bundle_src }}"
+        dest: "{{ dashboard_bundle_dest }}"
+        remote_src: false
+
+    - name: Install ansible-core
+      ansible.builtin.dnf:
+        name: ansible-core
+        state: present
+      become: true
+
+    - name: Install required Ansible collections
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install -r requirements.yml
+        chdir: "{{ dashboard_install_dir }}"
+
+    - name: Template installer inventory
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/templates/inventory.j2"
+        dest: "{{ dashboard_install_dir }}/inventory"
+        mode: "0600"
+
+    - name: Run dashboard installer
+      ansible.builtin.command:
+        cmd: ansible-playbook -i inventory ansible.containerized_installer.dashboard_install
+        chdir: "{{ dashboard_install_dir }}"
+      become: true

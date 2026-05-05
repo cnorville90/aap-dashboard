@@ -1,0 +1,29 @@
+---
+# Usage:
+#   ansible-playbook setup_dashboard.yml \
+#     -e "aap_gateway_fqdn=aap-aap.apps.cluster-XXXXX.dynamic.redhatworkshops.io" \
+#     --ask-vault-pass
+
+- name: Create OAuth2 app and token in AAP
+  hosts: automationdashboard
+  gather_facts: false
+  roles:
+    - role: aap_oauth_setup
+
+- name: Install automation dashboard
+  hosts: automationdashboard
+  gather_facts: false
+  roles:
+    - role: dashboard_install
+
+- name: Configure automation dashboard
+  hosts: automationdashboard
+  gather_facts: false
+  roles:
+    - role: dashboard_configure
+
+- name: Sync initial data
+  hosts: automationdashboard
+  gather_facts: false
+  roles:
+    - role: dashboard_sync

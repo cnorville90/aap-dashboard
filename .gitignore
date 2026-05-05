@@ -1,0 +1,6 @@
+group_vars/all/vault.yml
+*.retry
+clusters.yaml
+inventory/hosts_local.yml
+*.pem
+*.key

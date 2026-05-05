@@ -1,0 +1,58 @@
+---
+- name: Get AAP gateway user ID for admin
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/users/?username={{ vault_aap_admin_user }}"
+    method: GET
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: 200
+  register: aap_user_response
+
+- name: Set admin user ID fact
+  ansible.builtin.set_fact:
+    aap_admin_user_id: "{{ aap_user_response.json.results[0].id }}"
+
+- name: Create OAuth2 application in AAP
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/o/applications/"
+    method: POST
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ oauth_app_name }}"
+      authorization_grant_type: "{{ oauth_app_grant_type }}"
+      client_type: "{{ oauth_app_client_type }}"
+      redirect_uris: "https://{{ inventory_hostname }}/auth-callback"
+    status_code: [200, 201]
+  register: oauth_app_response
+
+- name: Set OAuth application facts
+  ansible.builtin.set_fact:
+    oauth_client_id: "{{ oauth_app_response.json.client_id }}"
+    oauth_client_secret: "{{ oauth_app_response.json.client_secret }}"
+
+- name: Create AAP access token for dashboard
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/users/{{ aap_admin_user_id }}/personal_tokens/"
+    method: POST
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      description: automation-dashboard token
+      application: "{{ oauth_app_response.json.id }}"
+      scope: read
+    status_code: [200, 201]
+  register: oauth_token_response
+
+- name: Set OAuth token facts
+  ansible.builtin.set_fact:
+    oauth_access_token: "{{ oauth_token_response.json.token }}"
+    oauth_refresh_token: "{{ oauth_token_response.json.refresh_token }}"

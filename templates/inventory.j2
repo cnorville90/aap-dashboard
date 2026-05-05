@@ -1,0 +1,36 @@
+[automationdashboard]
+{{ inventory_hostname }} ansible_connection=local
+
+[automationdashboard:vars]
+aap_auth_provider_name={{ aap_auth_provider_name }}
+aap_auth_provider_protocol={{ aap_auth_provider_protocol }}
+aap_auth_provider_aap_version={{ aap_auth_provider_aap_version }}
+aap_auth_provider_host={{ aap_gateway_fqdn }}
+aap_auth_provider_check_ssl={{ aap_auth_provider_check_ssl | lower }}
+aap_auth_provider_client_id={{ oauth_client_id }}
+aap_auth_provider_client_secret={{ oauth_client_secret }}
+initial_sync_days={{ initial_sync_days }}
+show_urllib3_insecure_request_warning=False
+dashboard_tls_cert={{ dashboard_tls_cert }}
+dashboard_tls_key={{ dashboard_tls_key }}
+
+[database]
+{{ inventory_hostname }} ansible_connection=local
+
+[redis]
+{{ inventory_hostname }} ansible_connection=local
+
+[all:vars]
+redis_mode=standalone
+postgresql_admin_username={{ postgresql_admin_username }}
+postgresql_admin_password={{ vault_postgresql_admin_password }}
+registry_username={{ vault_registry_username }}
+registry_password={{ vault_registry_password }}
+dashboard_pg_containerized={{ dashboard_pg_containerized | capitalize }}
+dashboard_admin_password={{ vault_dashboard_admin_password }}
+dashboard_pg_host={{ inventory_hostname }}
+dashboard_pg_username={{ dashboard_pg_username }}
+dashboard_pg_password={{ vault_dashboard_pg_password }}
+dashboard_pg_database={{ dashboard_pg_database }}
+bundle_install=true
+bundle_dir={{ dashboard_install_dir }}/bundle

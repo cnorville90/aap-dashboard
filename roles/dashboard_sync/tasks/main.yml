@@ -1,0 +1,15 @@
+---
+- name: Get today's date
+  ansible.builtin.command: date +%Y-%m-%d
+  register: today
+  changed_when: false
+
+- name: Run initial data sync
+  ansible.builtin.command:
+    cmd: >
+      podman exec automation-dashboard-web
+      /venv/bin/python manage.py syncdata
+      --since={{ sync_since_date }}
+      --until={{ today.stdout }}
+  vars:
+    sync_since_date: "{{ (today.stdout | to_datetime('%Y-%m-%d') - (initial_sync_days | int * 86400) | int | to_datetime).strftime('%Y-%m-%d') }}"

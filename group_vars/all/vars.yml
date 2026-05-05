@@ -1,0 +1,37 @@
+---
+# AAP connection settings
+aap_auth_provider_protocol: https
+aap_auth_provider_aap_version: "2.6"
+aap_auth_provider_check_ssl: false
+aap_auth_provider_name: Ansible Automation Platform
+
+# Dashboard install settings
+dashboard_bundle_src: /media/ansible-automation-dashboard-containerized-setup-bundle-0.1-x86_64.tar.gz
+dashboard_bundle_dest: /home/ec2-user/dashboard_bundle
+dashboard_install_dir: "{{ dashboard_bundle_dest }}/ansible-automation-dashboard-containerized-setup"
+
+# Dashboard TLS (self-signed)
+verify_ssl: false
+dashboard_tls_cert: "{{ dashboard_install_dir }}/fullchain.pem"
+dashboard_tls_key: "{{ dashboard_install_dir }}/privkey.pem"
+
+# Database settings
+dashboard_pg_username: aapdashboard
+dashboard_pg_database: aapdashboard
+dashboard_pg_containerized: true
+
+# PostgreSQL admin
+postgresql_admin_username: postgres
+
+# Sync settings
+initial_sync_days: 1
+
+# OAuth application settings
+oauth_app_name: automation-dashboard-sso
+oauth_app_grant_type: authorization-code
+oauth_app_client_type: confidential
+
+# Sync schedule
+sync_schedule_name: Every 5 minutes sync
+sync_schedule_rrule: "DTSTART;TZID=America/Denver:20250101T000000\nFREQ=MINUTELY;INTERVAL=5"
+sync_schedule_enabled: true

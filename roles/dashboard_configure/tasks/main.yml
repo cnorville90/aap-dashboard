@@ -1,0 +1,19 @@
+---
+- name: Template clusters.yaml
+  ansible.builtin.template:
+    src: clusters.yaml.j2
+    dest: /tmp/clusters.yaml
+    mode: "0600"
+
+- name: Copy clusters.yaml into dashboard container
+  ansible.builtin.command:
+    cmd: podman cp /tmp/clusters.yaml automation-dashboard-web:/tmp/clusters.yaml
+
+- name: Load cluster configuration into dashboard
+  ansible.builtin.command:
+    cmd: podman exec automation-dashboard-web /venv/bin/python manage.py setclusters /tmp/clusters.yaml
+
+- name: Remove local clusters.yaml
+  ansible.builtin.file:
+    path: /tmp/clusters.yaml
+    state: absent
