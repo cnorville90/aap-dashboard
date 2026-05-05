@@ -49,9 +49,9 @@ Load cluster connection details into the running dashboard container.
 
 Trigger the initial data synchronization from AAP to the dashboard.
 
-- [ ] [#12](https://github.com/cnorville90/aap-dashboard/issues/12) Run `manage.py syncdata` in non-interactive mode with date range
-- [ ] [#12](https://github.com/cnorville90/aap-dashboard/issues/12) Verify sync success message in output
-- [ ] [#13](https://github.com/cnorville90/aap-dashboard/issues/13) Parameterize `--since` date via `initial_sync_days` variable
+- [x] [#12](https://github.com/cnorville90/aap-dashboard/issues/12) Run `manage.py syncdata` in non-interactive mode with date range
+- [x] [#12](https://github.com/cnorville90/aap-dashboard/issues/12) Verify sync success message in output
+- [x] [#13](https://github.com/cnorville90/aap-dashboard/issues/13) Parameterize `--since` date via `initial_sync_days` variable
 
 ## Milestone 6 — End-to-End Testing
 
