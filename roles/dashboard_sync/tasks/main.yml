@@ -1,15 +1,62 @@
 ---
-- name: Get today's date
-  ansible.builtin.command: date +%Y-%m-%d
-  register: today
+# --- Pre-flight: confirm container is running ---
+
+- name: Verify dashboard container is running
+  ansible.builtin.command:
+    cmd: podman ps --filter name={{ dashboard_container_name }} --format {{ '{{' }}.Names{{ '}}' }}
+  register: container_check
   changed_when: false
 
-- name: Run initial data sync
+- name: Fail if dashboard container is not running
+  ansible.builtin.fail:
+    msg: >
+      Container '{{ dashboard_container_name }}' is not running.
+      Run the dashboard_install role first.
+  when: dashboard_container_name not in container_check.stdout
+
+# --- Calculate date range ---
+
+- name: Get today's date
+  ansible.builtin.command: date +%Y-%m-%d
+  register: sync_today
+  changed_when: false
+
+- name: Calculate sync since date from initial_sync_days
+  ansible.builtin.command: >
+    date -d "{{ sync_today.stdout }} -{{ initial_sync_days }} days" +%Y-%m-%d
+  register: sync_since
+  changed_when: false
+
+- name: Show sync date range
+  ansible.builtin.debug:
+    msg: "Syncing data from {{ sync_since.stdout }} to {{ sync_today.stdout }} ({{ initial_sync_days }} day(s))"
+
+# --- Run syncdata ---
+
+- name: Run syncdata in non-interactive mode
   ansible.builtin.command:
     cmd: >
-      podman exec automation-dashboard-web
+      podman exec {{ dashboard_container_name }}
       /venv/bin/python manage.py syncdata
-      --since={{ sync_since_date }}
-      --until={{ today.stdout }}
-  vars:
-    sync_since_date: "{{ (today.stdout | to_datetime('%Y-%m-%d') - (initial_sync_days | int * 86400) | int | to_datetime).strftime('%Y-%m-%d') }}"
+      --since={{ sync_since.stdout }}
+      --until={{ sync_today.stdout }}
+  register: syncdata_result
+  changed_when: "'Successfully created Sync task' in syncdata_result.stdout"
+  failed_when:
+    - syncdata_result.rc != 0
+    - "'Successfully created Sync task' not in syncdata_result.stdout"
+
+# --- Verify success ---
+
+- name: Show syncdata output
+  ansible.builtin.debug:
+    msg: "{{ syncdata_result.stdout_lines }}"
+
+- name: Confirm sync task was created successfully
+  ansible.builtin.assert:
+    that:
+      - "'Successfully created Sync task' in syncdata_result.stdout"
+    fail_msg: >
+      syncdata did not report success. Output: {{ syncdata_result.stdout }}
+      Check container logs: podman logs {{ dashboard_container_name }}
+    success_msg: "Data sync initiated successfully for cluster {{ aap_gateway_fqdn }}."
