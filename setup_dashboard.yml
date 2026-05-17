@@ -3,17 +3,22 @@
 #   ansible-playbook setup_dashboard.yml \
 #     -e "aap_gateway_fqdn=aap-aap.apps.cluster-XXXXX.dynamic.redhatworkshops.io" \
 #     --ask-vault-pass
+#
+# Run a single phase with tags:
+#   --tags provision | oauth | install | configure | sync
 
 - name: Provision EC2 instance for dashboard
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   roles:
     - role: ec2_provision
 
 - name: Create OAuth2 app and token in AAP
   hosts: automationdashboard
   gather_facts: false
+  tags: oauth
   vars:
     dashboard_host_ip: "{{ hostvars['localhost']['dashboard_host_ip'] }}"
   roles:
@@ -22,17 +27,20 @@
 - name: Install automation dashboard
   hosts: automationdashboard
   gather_facts: false
+  tags: install
   roles:
     - role: dashboard_install
 
 - name: Configure automation dashboard
   hosts: automationdashboard
   gather_facts: true
+  tags: configure
   roles:
     - role: dashboard_configure
 
 - name: Sync initial data
   hosts: automationdashboard
   gather_facts: false
+  tags: sync
   roles:
     - role: dashboard_sync

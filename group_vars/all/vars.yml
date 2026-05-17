@@ -33,5 +33,5 @@ oauth_app_client_type: confidential
 
 # Sync schedule
 sync_schedule_name: Every 5 minutes sync
-sync_schedule_rrule: "DTSTART;TZID=America/Denver:20250101T000000\nFREQ=MINUTELY;INTERVAL=5"
+sync_schedule_rrule: "DTSTART;TZID=America/Denver:20250101T000000 FREQ=MINUTELY;INTERVAL=5"
 sync_schedule_enabled: true
