@@ -1,6 +1,6 @@
 ---
-dashboard_bundle_src: /media/ansible-automation-dashboard-containerized-setup-bundle-0.1-x86_64.tar.gz
-dashboard_bundle_dest: /home/ec2-user/dashboard_bundle
+dashboard_bundle_src: /media/ansible-automation-dashboard-containerized-setup-0.1-x86_64.tar.gz
+dashboard_bundle_dest: /home/ec2-user/dashboard_setup
 dashboard_install_dir: "{{ dashboard_bundle_dest }}/ansible-automation-dashboard-containerized-setup"
 dashboard_container_name: automation-dashboard-web
 

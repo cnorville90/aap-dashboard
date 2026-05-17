@@ -81,6 +81,7 @@
     oauth_app_id: "{{ new_app_response.json.id }}"
     oauth_client_id: "{{ new_app_response.json.client_id }}"
     oauth_client_secret: "{{ new_app_response.json.client_secret }}"
+    cacheable: true
   when: existing_app_response.json.count == 0
 
 - name: Set OAuth app facts from existing application
@@ -88,6 +89,7 @@
     oauth_app_id: "{{ existing_app_response.json.results[0].id }}"
     oauth_client_id: "{{ existing_app_response.json.results[0].client_id }}"
     oauth_client_secret: "{{ existing_app_response.json.results[0].client_secret }}"
+    cacheable: true
   when: existing_app_response.json.count > 0
 
 - name: Log OAuth app status
@@ -116,6 +118,7 @@
   ansible.builtin.set_fact:
     oauth_access_token: "{{ oauth_token_response.json.token }}"
     oauth_refresh_token: "{{ oauth_token_response.json.refresh_token }}"
+    cacheable: true
 
 - name: Confirm tokens were captured
   ansible.builtin.debug:

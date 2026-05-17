@@ -34,11 +34,11 @@
         state: directory
         mode: "0755"
 
-    - name: Extract dashboard setup bundle
+    - name: Extract dashboard setup archive
       ansible.builtin.unarchive:
         src: "{{ dashboard_bundle_src }}"
         dest: "{{ dashboard_bundle_dest }}"
-        remote_src: false
+        remote_src: true
         creates: "{{ dashboard_install_dir }}/inventory.example"
         owner: ec2-user
         group: ec2-user
@@ -56,14 +56,12 @@
           -addext "subjectAltName=DNS:{{ dashboard_tls_common_name }}"
         creates: "{{ dashboard_tls_cert }}"
 
-    # --- Install bundled collections via ansible-galaxy (offline) ---
+    # --- Install collections from Ansible Galaxy (online installer) ---
 
-    - name: Install required collections from bundle
+    - name: Install required collections from Galaxy
       ansible.builtin.command:
         cmd: ansible-galaxy collection install -r requirements.yml -p ~/.ansible/collections
         chdir: "{{ dashboard_install_dir }}"
-      environment:
-        ANSIBLE_COLLECTIONS_PATH: "{{ dashboard_install_dir }}/collections"
 
     # --- Create wrapper playbook outside collection dir ---
 
@@ -89,9 +87,6 @@
       ansible.builtin.command:
         cmd: ansible-playbook run_install.yml
         chdir: "{{ dashboard_install_dir }}"
-      environment:
-        ANSIBLE_COLLECTIONS_PATH: "{{ dashboard_install_dir }}/collections"
-        ANSIBLE_COLLECTIONS_PATHS: "{{ dashboard_install_dir }}/collections"
       register: dashboard_install_result
       changed_when: "'changed=' in dashboard_install_result.stdout"
 
