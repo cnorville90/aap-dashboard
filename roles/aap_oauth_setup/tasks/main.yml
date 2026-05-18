@@ -70,7 +70,7 @@
       description: "{{ oauth_app_description }}"
       authorization_grant_type: "{{ oauth_app_grant_type }}"
       client_type: "{{ oauth_app_client_type }}"
-      redirect_uris: "https://{{ dashboard_host_ip }}/auth-callback"
+      redirect_uris: "https://{{ dashboard_host_ip }}:8447/auth-callback"
       organization: "{{ aap_org_id }}"
     status_code: [200, 201]
   register: new_app_response
@@ -84,13 +84,51 @@
     cacheable: true
   when: existing_app_response.json.count == 0
 
-- name: Set OAuth app facts from existing application
+# AAP masks client_secret as '$encrypted$' on GET — delete and recreate to get real secret
+- name: Delete existing OAuth2 application (secret is masked, must recreate)
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/applications/{{ existing_app_response.json.results[0].id }}/"
+    method: DELETE
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    status_code: [204]
+  when:
+    - existing_app_response.json.count > 0
+    - existing_app_response.json.results[0].client_secret == '$encrypted$'
+
+- name: Recreate OAuth2 application (after delete to recover real secret)
+  ansible.builtin.uri:
+    url: "https://{{ aap_gateway_fqdn }}/api/gateway/v1/applications/"
+    method: POST
+    user: "{{ vault_aap_admin_user }}"
+    password: "{{ vault_aap_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ oauth_app_name }}"
+      description: "{{ oauth_app_description }}"
+      authorization_grant_type: "{{ oauth_app_grant_type }}"
+      client_type: "{{ oauth_app_client_type }}"
+      redirect_uris: "https://{{ dashboard_host_ip }}:8447/auth-callback"
+      organization: "{{ aap_org_id }}"
+    status_code: [200, 201]
+  register: recreated_app_response
+  when:
+    - existing_app_response.json.count > 0
+    - existing_app_response.json.results[0].client_secret == '$encrypted$'
+
+- name: Set OAuth app facts from recreated application
   ansible.builtin.set_fact:
-    oauth_app_id: "{{ existing_app_response.json.results[0].id }}"
-    oauth_client_id: "{{ existing_app_response.json.results[0].client_id }}"
-    oauth_client_secret: "{{ existing_app_response.json.results[0].client_secret }}"
+    oauth_app_id: "{{ recreated_app_response.json.id }}"
+    oauth_client_id: "{{ recreated_app_response.json.client_id }}"
+    oauth_client_secret: "{{ recreated_app_response.json.client_secret }}"
     cacheable: true
-  when: existing_app_response.json.count > 0
+  when:
+    - existing_app_response.json.count > 0
+    - existing_app_response.json.results[0].client_secret == '$encrypted$'
 
 - name: Log OAuth app status
   ansible.builtin.debug:
